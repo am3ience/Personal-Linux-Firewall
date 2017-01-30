@@ -1,83 +1,83 @@
 ##!/bin/sh
 
-IPT="/sbin/iptables"
- 
 clear
-# Flushing all rules
-$IPT -F
-$IPT -X
- 
-# DROP all incomming traffic
- 
-$IPT -P INPUT DROP
-$IPT -P FORWARD DROP
-$IPT -P OUTPUT DROP
+#flush IP tables
+iptables -F
+#delete user-chains
+iptables -X
 
-# CHAINS
-$IPT -N otherAccept
-$IPT -N otherDrop
-$IPT -N wwwIn
-$IPT -N wwwOut
-$IPT -N sshIn
-$IPT -N sshOut 
+# Change the default chain policy to DROP
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
 
-$IPT -A otherAccept -j ACCEPT
-$IPT -A otherDrop -j DROP
-$IPT -A wwwIn -j ACCEPT
-$IPT -A wwwOut -j ACCEPT
-$IPT -A sshIn -j ACCEPT
-$IPT -A sshOut -j ACCEPT
+#User Defined chain
+iptables -N ssh
+iptables -N www
+iptables -N otherdrop
+iptables -N otheraccept
 
-# Drop inbound traffic to port 80 / 443 from source ports less than 1024
 
-$IPT -A INPUT  -p tcp  --dport 80   --sport 0:1023 -j otherDrop
-$IPT -A INPUT -p tcp  --dport 443   --sport 0:1023 -j otherDrop
- 
-# Allow DNS
-$IPT -A OUTPUT -p UDP --dport 53 -j otherAccept
-$IPT -A INPUT -p UDP --sport 53 -j otherAccept
-$IPT -A OUTPUT -p TCP --dport 53 -j otherAccept
-$IPT -A INPUT -p TCP --sport 53 -j otherAccept
- 
-# Allow DHCP
-$IPT -A OUTPUT -p UDP --dport 68 -j otherAccept
-$IPT -A INPUT -p UDP --sport 68 -j  otherAccept
-$IPT -A OUTPUT -p TCP --dport 68 -j otherAccept
-$IPT -A INPUT -p TCP --sport 68 -j  otherAccept
+iptables -A ssh -j ACCEPT
+iptables -A www -j ACCEPT
+iptables -A otherdrop -j DROP
+iptables -A otheraccept -j ACCEPT
 
-#DROP OUTBOUND destination port 0
 
-$IPT -A OUTPUT -p UDP --dport 0 -j otherDrop
-$IPT -A OUTPUT -p TCP --dport 0 -j otherDrop
+#-----------------------------------------------------
+#Permit inbound/outbound ssh packets
+iptables -A INPUT -p tcp --dport 22 -j ssh
+iptables -A OUTPUT -p tcp --sport 22 -j ssh
 
-# DROP INBOUND source port 0
+iptables -A OUTPUT -p tcp --dport 22 -j ssh
+iptables -A INPUT -p tcp --sport 22 -j ssh
 
-$IPT -A INPUT -p UDP --sport 0 -j otherDrop
-$IPT -A INPUT -p TCP --sport 0 -j otherDrop
+#-----------------------------------------------------
+#Allow inbound/outbound www packets
 
- 
-# Allow Inbound / Outbound SSH   
+#inbound HTTP
+iptables -A INPUT -p tcp --dport 80 -j www
+iptables -A OUTPUT -p tcp --sport 80 -j www
+#outbound HTTP
+iptables -A OUTPUT -p tcp --dport 80 -j www
+iptables -A INPUT -p tcp --sport 80 -j www
 
-$IPT -A INPUT -p tcp --dport 22 -j sshIn
-$IPT -A INPUT -p tcp --sport 22 -j sshIn
+#inbound HTTPS
+iptables -A INPUT -p tcp --dport 443 -j www
+iptables -A OUTPUT -p tcp --sport 443 -j www
+#outbound HTTPS
+iptables -A OUTPUT -p tcp --dport 443 -j www
+iptables -A INPUT -p tcp --sport 443 -j www
 
-$IPT -A OUTPUT -p tcp --sport 22 -j sshOut
-$IPT -A OUTPUT -p tcp --dport 22 -j sshOut
+#---------------------------------------------------
+#Drop inbound traffic to port 80 from source ports less than 1024
+iptables -A INPUT -p tcp --dport 80 --sport 0:1024 -j otherdrop
 
-# Allow Inbound / Outbound www
+#---------------------------------------------------
+#Drop all incoming packets from reserved port 0 as well
+#as outbound traffic to port 0
+iptables -A INPUT -p tcp --sport 0 -j otherdrop
+iptables -A OUTPUT -p tcp --dport 0 -j otherdrop
+iptables -A INPUT -p udp --sport 0 -j otherdrop
+iptables -A OUTPUT -p udp --dport 0 -j otherdrop
 
-$IPT -A INPUT  -p tcp --sport 80 -j wwwIn
-$IPT -A OUTPUT -p tcp --dport 80 -j wwwOut
-$IPT -A INPUT  -p tcp --dport 80 -j wwwIn
-$IPT -A OUTPUT -p tcp --sport 80 -j wwwOut
+#----------------------------------------------------
+#Allow inbound/outbound DHCP
+iptables -A OUTPUT -p udp --dport 68 -j otheraccept
+iptables -A INPUT -p udp --sport 68 -j otheraccept
+iptables -A OUTPUT -p tcp --dport 68 -j otheraccept
+iptables -A INPUT -p tcp --sport 68 -j otheraccept
 
-$IPT -A OUTPUT -p tcp --dport 443 -j wwwOut
-$IPT -A INPUT  -p tcp --sport 443 -j wwwIn
-$IPT -A OUTPUT -p tcp --sport 443 -j wwwOut
-$IPT -A INPUT  -p tcp --dport 443 -j wwwIn
+#----------------------------------------------------
+#Allow inbound/outbound DNS
+iptables -A OUTPUT -p udp --dport 53 -j otheraccept
+iptables -A INPUT -p udp --sport 53 -j otheraccept
+iptables -A OUTPUT -p tcp --dport 53 -j otheraccept
+iptables -A INPUT -p tcp --sport 53 -j otheraccept
 
-# save, restart, and check the iptables
+#---------------------------------------------------
+#save then restart the iptables
+systemctl iptables save
+systemctl iptables restart
 
-service iptables save
-service iptables restart
-iptables -L -n -v -x
+iptables -L -v -n -x
