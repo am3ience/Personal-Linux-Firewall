@@ -23,11 +23,22 @@ iptables -A www -j ACCEPT
 iptables -A otherdrop -j DROP
 iptables -A otheraccept -j ACCEPT
 
+#---------------------------------------------------
+#Drop inbound traffic to port 80 from source ports less than 1024
+iptables -A INPUT -p tcp --dport 80 --sport 0:1024 -j otherdrop
+
+#---------------------------------------------------
+#Drop all incoming packets from reserved port 0 as well
+#as outbound traffic to port 0
+iptables -A INPUT -p tcp --sport 0 -j otherdrop
+iptables -A OUTPUT -p tcp --dport 0 -j otherdrop
+iptables -A INPUT -p udp --sport 0 -j otherdrop
+iptables -A OUTPUT -p udp --dport 0 -j otherdrop
 
 #-----------------------------------------------------
 #Permit inbound/outbound ssh packets
-iptables -A INPUT -p tcp --dport 22 -j ssh
-iptables -A OUTPUT -p tcp --sport 22 -j ssh
+iptables -A INPUT -p tcp --dport 22 -m state --state NEW,ESTABLISHED -j ssh
+iptables -A OUTPUT -p tcp --sport 22 -m state --state NEW,ESTABLISHED -j ssh
 
 iptables -A OUTPUT -p tcp --dport 22 -j ssh
 iptables -A INPUT -p tcp --sport 22 -j ssh
@@ -48,18 +59,6 @@ iptables -A OUTPUT -p tcp --sport 443 -j www
 #outbound HTTPS
 iptables -A OUTPUT -p tcp --dport 443 -j www
 iptables -A INPUT -p tcp --sport 443 -j www
-
-#---------------------------------------------------
-#Drop inbound traffic to port 80 from source ports less than 1024
-iptables -A INPUT -p tcp --dport 80 --sport 0:1024 -j otherdrop
-
-#---------------------------------------------------
-#Drop all incoming packets from reserved port 0 as well
-#as outbound traffic to port 0
-iptables -A INPUT -p tcp --sport 0 -j otherdrop
-iptables -A OUTPUT -p tcp --dport 0 -j otherdrop
-iptables -A INPUT -p udp --sport 0 -j otherdrop
-iptables -A OUTPUT -p udp --dport 0 -j otherdrop
 
 #----------------------------------------------------
 #Allow inbound/outbound DHCP
