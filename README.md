@@ -12,5 +12,4 @@ A firewall for Linux that implements the following rules:
 Constraints:
 - Use Netfilter for your firewall implementation.
 - You must ensure the the firewall drops all inbound SYN packets, unless there is a rule that permits inbound traffic.
-- You will be required to demonstrate your firewall in action on the day the assignment is due.
-- Remember to allow DNS and DHCP traffic through so that your machine can function properly.
+- Allow DNS and DHCP traffic through so that your machine can function properly.
